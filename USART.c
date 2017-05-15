@@ -25,7 +25,7 @@ void InitUart()
   U0GCR |= 11;           //U0GCR与U0BAUD配合     
   U0BAUD |= 216;       // 波特率设为115200 
  
-  IEN0 |= 0X04;     //开串口接收中断 'URX0IE = 1',也可以写成 URX0IE=1;
+  //IEN0 |= 0X04;     //开串口接收中断 'URX0IE = 1',也可以写成 URX0IE=1;
   EA=1;
     
 }
