@@ -2,7 +2,7 @@
      * 基础实验只需要添加以下头文件 
      ******************************************/  
     #include <ioCC2530.h>  
-      
+    #include "MyDMA.h" 
     #define uint8 unsigned char   //或typedef unsigned char uint;  
     #define uint16 unsigned int   
       
@@ -31,7 +31,7 @@
     }DMA_DESC;  
     #pragma bitfields=default  
       
-    #define DATA_AMOUNT 350  
+    #define DATA_AMOUNT 35  
       
     /***************************************************** 
      * CC2530数据手册中对DMA数据结构的介绍，对以下常量赋值 
@@ -115,7 +115,10 @@ void InitDMA0()//USART0的接收DMA通道
       dmaConfig0.SRCINC    = DMA_SRCINC_0;     //源地址增量0              
       dmaConfig0.DESTINC   = DMA_DESTINC_1;     //目的地址增量1             
         
-      dmaConfig0.IRQMASK   = DMA_IRQMASK_DISABLE;  //中断 屏蔽         
+      dmaConfig0.IRQMASK   = DMA_IRQMASK_ENABLE;//打开中断，相当于设置了IRCON.DMAIF  当达到传输计数时会引发中断（中断标志位置位）   DMA_IRQMASK_DISABLE;  //中断 屏蔽         
+      DMAIE=1;
+      EA=1;
+      
       dmaConfig0.M8        = DMA_M8_USE_8_BITS;   //           
       dmaConfig0.PRIORITY  = DMA_PRI_HIGH;      //优先级             
        //DMA通道地址配置
@@ -132,13 +135,29 @@ void InitDMA0()//USART0的接收DMA通道
       DMAREQ |= DMAREQ_DMAREQ0;//设置为1，激活DMA通道0(与一个触发事件具有相同的效果)，当DMA传输开始清除该位  
         
       /*等待DMA通道0传送完毕*/  
-      for (; !(DMAIRQ & DMAIRQ_DMAIF0););//当DMA通道0传送完成，DMAIRQ:DMAIF0位置1,与上DMAIRQ_DMAIF0(0x01)，取非后为0退出循环  
+   //   for (; !(DMAIRQ & DMAIRQ_DMAIF0););//当DMA通道0传送完成，DMAIRQ:DMAIF0位置1,与上DMAIRQ_DMAIF0(0x01)，取非后为0退出循环  
         
       /*清除中断标志*/  
       DMAIRQ = ~DMAIRQ_DMAIF0;  
         
       Delay_ms(5);  
 }
+
+#pragma vector=DMA_VECTOR
+__interrupt void DMA_ISR(void)
+{
+  //先关中断
+  DMAIE=0;
+  if(DMAIRQ & DMAIRQ_DMAIF0)
+  {
+      /*清除中断标志*/  
+      DMAIRQ = ~DMAIRQ_DMAIF0;
+      //把数据发出去
+  }
+  //再开中断
+  DMAIE=1;
+}
+
 
 
 void InitDMA1(int length)//USART0的发送DMA通道，还需要改善
