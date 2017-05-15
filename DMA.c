@@ -3,6 +3,7 @@
      ******************************************/  
     #include <ioCC2530.h>  
     #include "MyDMA.h" 
+    #include"ZComDef.h"
     #define uint8 unsigned char   //或typedef unsigned char uint;  
     #define uint16 unsigned int   
       
@@ -84,6 +85,8 @@
     //用来保存复制来的数据区域  
     char dst[DATA_AMOUNT];  
     //数据长度  
+    
+    extern byte GenericApp_TaskID; 
    void Delay_ms(uint16 ms)  
     {  
       uint16 i,j;  
@@ -138,9 +141,14 @@ void InitDMA0()//USART0的接收DMA通道
    //   for (; !(DMAIRQ & DMAIRQ_DMAIF0););//当DMA通道0传送完成，DMAIRQ:DMAIF0位置1,与上DMAIRQ_DMAIF0(0x01)，取非后为0退出循环  
         
       /*清除中断标志*/  
-      DMAIRQ = ~DMAIRQ_DMAIF0;  
+    //  DMAIRQ = ~DMAIRQ_DMAIF0;  
         
-      Delay_ms(5);  
+    //  Delay_ms(5);  
+}
+
+uint8 test( uint8 task_id, uint16 event_flag )
+{
+  osal_set_event( task_id, event_flag );
 }
 
 #pragma vector=DMA_VECTOR
@@ -152,7 +160,13 @@ __interrupt void DMA_ISR(void)
   {
       /*清除中断标志*/  
       DMAIRQ = ~DMAIRQ_DMAIF0;
-      //把数据发出去
+      /*把数据发出去.设置事件，交给App层的MY_EVENT_DMA0事件
+      直接调用osal_set_event，发现传参数用的是R4,R5，进入函数后读取的参数是R1,R2
+      osal_set_event( GenericApp_TaskID, MY_EVENT_DMA0 );
+      osal_set_event( 5, MY_EVENT_DMA0 );
+      */
+      test(GenericApp_TaskID, MY_EVENT_DMA0);
+      /*DMAIE=0;*/
   }
   //再开中断
   DMAIE=1;

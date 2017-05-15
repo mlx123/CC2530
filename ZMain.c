@@ -131,8 +131,7 @@ int main( void )
 /*mlx USARTInit 10.14*/
   InitUart();
   InitDMA0();
-  
-  
+   osal_set_event( 5, MY_EVENT_DMA0 );
   
   osal_start_system(); // No Return from here
 
