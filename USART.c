@@ -79,6 +79,5 @@ __interrupt void URX0_ISR(void)
  //   Uart0_SendCh('e');
  // }
   //Ê¹ÄÜÖÐ¶Ï
-  URX0IE=1;     
-  
+  URX0IE=1;   
 }
