@@ -78,7 +78,7 @@
 #include "hal_led.h"
 #include "hal_key.h"
 #include "hal_uart.h"
-
+#include "MyDMA.h"
 /*********************************************************************
  * MACROS
  */
@@ -311,6 +311,39 @@ UINT16 GenericApp_ProcessEvent( byte task_id, UINT16 events )
     // return unprocessed events
     return (events ^ GENERICAPP_SEND_MSG_EVT);
   }
+  /*DMA0传输完成中断*/
+    if ( events & MY_EVENT_DMA0 )
+  {//DMA0传输完成后，要把收到的信息发给协调器AF_DataRequest
+    
+    //构造目的节点描述
+     afAddrType_t DMA0_DstAddr;
+     DMA0_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+     DMA0_DstAddr.addr.shortAddr = 0x0000;
+     // Take the first endpoint, Can be changed to search through endpoints
+     DMA0_DstAddr.endPoint =GENERICAPP_ENDPOINT ;
+      
+              
+  /*DMA0_DstAddr在上面设置，目的地的属性
+     GenericApp_epDesc在GenericApp_Init（）中被设置，自己的属性
+     GENERICAPP_CLUSTERID在Generic.h中被#define  1
+     第四位是数据长度
+     第五位是数据起始标志
+     第六位标志发送的是第几次，底层会自动加1
+     第七位是
+     第8位是最大传输次数
+     */
+     AF_DataRequest( &DMA0_DstAddr, &GenericApp_epDesc,
+                       GENERICAPP_CLUSTERID,
+                       35,
+                       (byte *)&dst,
+                       &GenericApp_TransID,
+                       AF_DISCV_ROUTE, AF_DEFAULT_RADIUS );
+    
+
+    // return unprocessed events
+    return (events ^ MY_EVENT_DMA0);
+  }
+  
 
   /**/
   
