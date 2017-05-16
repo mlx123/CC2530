@@ -6,7 +6,7 @@
     #include"ZComDef.h"
     #define uint8 unsigned char   //或typedef unsigned char uint;  
     #define uint16 unsigned int   
-      
+    uint8 UART0_i=0 ; 
     /******************************************************** 
      * IAR编译环境中位域字段默认取向采用小端模式， 
      * 配置结构体声明前使用#pragma bitfields=reversed取反向， 
@@ -77,13 +77,14 @@
     #define NOP()  asm("NOP")  
       
     //DMA配置参数  
-    static DMA_DESC dmaConfig0; 
+     DMA_DESC dmaConfig0; 
     static DMA_DESC dmaConfig1;
     static DMA_DESC dmaConfig1_4[4]; 
     //此数据是用来复制到内存的其他区域  
     static char src[DATA_AMOUNT] = "123456789123456789123456789"; 
     //用来保存复制来的数据区域  
-    char dst[DATA_AMOUNT];  
+    char dst[DATA_AMOUNT*10];
+    char *dst2;
     //数据长度  
     
     extern byte GenericApp_TaskID; 
@@ -100,18 +101,18 @@
 void InitDMA0()//USART0的接收DMA通道
 {
 
-
+      dst2=dst;
       dmaConfig0.SRCADDRH   = (0x70c1>> 8) & 0x00FF;    
       dmaConfig0.SRCADDRL   = (0x70c1) & 0x00FF;       
       dmaConfig0.DESTADDRH = ((uint16)&dst >> 8) & 0x00FF;   
       dmaConfig0.DESTADDRL = ((uint16)&dst) & 0x00FF;        
         
       dmaConfig0.VLEN      = DMA_VLEN_USE_LEN;               
-      dmaConfig0.LENH      = (DATA_AMOUNT >> 8) & 0x00FF;    
+      dmaConfig0.LENH      = (DATA_AMOUNT >> 8) & 0x00FF;  //传输的数据量  
       dmaConfig0.LENL      = (DATA_AMOUNT) & 0x00FF;         
         
       dmaConfig0.WORDSIZE  = DMA_WORDSIZE_BYTE;  //字节            
-      dmaConfig0.TMODE     = DMA_TMODE_SINGLE_REPEATED; //单次传输    
+      dmaConfig0.TMODE     = DMA_TMODE_SINGLE;//单次传输  DMA_TMODE_SINGLE_REPEATED; //单次重复传输    
       dmaConfig0.TRIG      =   14;
       
         
@@ -149,6 +150,7 @@ void InitDMA0()//USART0的接收DMA通道
 uint8 test( uint8 task_id, uint16 event_flag )
 {
   osal_set_event( task_id, event_flag );
+  return 0;
 }
 
 #pragma vector=DMA_VECTOR
@@ -156,18 +158,43 @@ __interrupt void DMA_ISR(void)
 {
   //先关中断
   DMAIE=0;
+   /*清除中断标志*/  
+      DMAIRQ = ~DMAIRQ_DMAIF0;
+#if 0
   if(DMAIRQ & DMAIRQ_DMAIF0)
   {
       /*清除中断标志*/  
       DMAIRQ = ~DMAIRQ_DMAIF0;
+
+      DMAARM=0;
+
+      //数据量不变，重设目的地址，然后启动传输
+      UART0_i=(UART0_i+1)%10;
+      dst2=dst2+(DATA_AMOUNT*(UART0_i%10));
+      dmaConfig0.DESTADDRH = ((uint16)dst2 >> 8) & 0x00FF;   
+      dmaConfig0.DESTADDRL = ((uint16)dst2) & 0x00FF; 
+        DMA0CFGH = ((uint16)&dmaConfig0 >> 8) & 0x00FF;        
+      DMA0CFGL = ((uint16)&dmaConfig0) & 0x00FF; 
+      
+      /*DMA进入工作模式通道0*/  
+ //     DMAARM |= DMAARM_DMAARM0;//为了任何DMA传输能够在该通道上发生，该位必须置1，对于非重复传输模式，一旦完成传送，该位自动清0  
+      /*一个通道准备工作(即获得配置数据)的时间需要9个系统时钟*/  
+  //    NOP();NOP();NOP();NOP();NOP();NOP();NOP();NOP();NOP(); // 9 NOPs  
+        
+      /*DMA通道0传送请求，即触发DMA传送*/  
+      //DMAREQ |= DMAREQ_DMAREQ0;//设置为1，激活DMA通道0(与一个触发事件具有相同的效果)，当DMA传输开始清除该位  
+    
+                               
       /*把数据发出去.设置事件，交给App层的MY_EVENT_DMA0事件
       直接调用osal_set_event，发现传参数用的是R4,R5，进入函数后读取的参数是R1,R2
       osal_set_event( GenericApp_TaskID, MY_EVENT_DMA0 );
       osal_set_event( 5, MY_EVENT_DMA0 );
       */
-      test(GenericApp_TaskID, MY_EVENT_DMA0);
+  //    test(GenericApp_TaskID, MY_EVENT_DMA0);
       /*DMAIE=0;*/
+
   }
+  #endif
   //再开中断
   DMAIE=1;
 }
